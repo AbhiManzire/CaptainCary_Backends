@@ -46,7 +46,7 @@ const crewSchema = new mongoose.Schema({
     coc: { type: documentSchema, required: true },
     seamanBook: { type: documentSchema, required: true },
     visa: { type: documentSchema, required: true },
-    photo: { type: documentSchema }
+    photo: { type: documentSchema } // Only photo is optional
   },
   
   // Admin Management
