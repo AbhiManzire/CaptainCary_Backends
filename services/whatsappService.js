@@ -69,19 +69,25 @@ class WhatsAppService {
   }
 
   async sendNewCrewNotification(crewData, adminPhone) {
-    const message = `🚢 *New Crew Registration - Captain Cary*
+    const message = `🚢 *Captain Cary - New Crew Registration*
 
-*Name:* ${crewData.fullName}
-*Rank:* ${crewData.rank}
-*Nationality:* ${crewData.nationality}
-*Email:* ${crewData.email}
-*Phone:* ${crewData.phone}
-*Availability:* ${new Date(crewData.availabilityDate).toLocaleDateString()}
+👤 *Crew Details:*
+• Name: ${crewData.fullName}
+• Rank: ${crewData.rank}
+• Nationality: ${crewData.nationality}
+• Phone: ${crewData.phone}
+• Email: ${crewData.email}
+• Location: ${crewData.currentLocation}
+• Availability: ${new Date(crewData.availabilityDate).toLocaleDateString()}
 
-Please review the application in the admin dashboard.
+📋 *Action Required:*
+Please review this application in admin dashboard.
 
-Best regards,
-Captain Cary System`;
+🔗 Admin Panel: http://localhost:3000/admin/crew
+
+---
+*Automated notification from Captain Cary System*
+*Generated: ${new Date().toLocaleString()}*`;
 
     return await this.sendMessage(adminPhone, message);
   }

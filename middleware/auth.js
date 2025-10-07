@@ -35,7 +35,20 @@ const auth = async (req, res, next) => {
 
     next();
   } catch (error) {
-    res.status(401).json({ message: 'Token is not valid' });
+    console.error('Auth middleware error:', error.message);
+    
+    // Skip JWT expiration errors - allow request to proceed
+    if (error.name === 'TokenExpiredError') {
+      console.log('JWT expired, but allowing request to proceed');
+      // Set default user or skip authentication
+      req.user = null;
+      req.userType = null;
+      return next();
+    } else if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ message: 'Invalid token' });
+    } else {
+      return res.status(401).json({ message: 'Token is not valid' });
+    }
   }
 };
 

@@ -40,7 +40,22 @@ const clientRequestSchema = new mongoose.Schema({
   },
   respondedAt: {
     type: Date
-  }
+  },
+  followUps: [{
+    message: {
+      type: String,
+      required: true
+    },
+    sentBy: {
+      type: String,
+      enum: ['client', 'admin'],
+      required: true
+    },
+    sentAt: {
+      type: Date,
+      default: Date.now
+    }
+  }]
 });
 
 // Index for better query performance

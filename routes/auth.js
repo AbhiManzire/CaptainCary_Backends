@@ -9,7 +9,7 @@ const router = express.Router();
 
 // Generate JWT token
 const generateToken = (id, type) => {
-  return jwt.sign({ id, type }, process.env.JWT_SECRET, { expiresIn: '7d' });
+  return jwt.sign({ id, type }, process.env.JWT_SECRET, { expiresIn: '24h' }); // 24 hours session
 };
 
 // Admin login
@@ -24,14 +24,21 @@ router.post('/admin/login', [
     }
 
     const { email, password } = req.body;
+    console.log('Admin login attempt:', { email, passwordLength: password?.length });
+    
     const admin = await Admin.findOne({ email });
+    console.log('Admin found:', !!admin);
     
     if (!admin || !admin.isActive) {
+      console.log('Admin not found or inactive');
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
     const isMatch = await admin.comparePassword(password);
+    console.log('Password match:', isMatch);
+    
     if (!isMatch) {
+      console.log('Password does not match');
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
@@ -106,6 +113,45 @@ router.get('/me', auth, async (req, res) => {
     });
   } catch (error) {
     console.error('Get user error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Refresh token endpoint
+router.post('/refresh', auth, async (req, res) => {
+  try {
+    // Generate new token with same user info
+    const newToken = generateToken(req.user._id, req.userType);
+    
+    res.json({
+      token: newToken,
+      user: req.user,
+      userType: req.userType
+    });
+  } catch (error) {
+    console.error('Token refresh error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Keep alive endpoint to prevent session timeout
+router.get('/keep-alive', auth, async (req, res) => {
+  try {
+    // Update last activity timestamp
+    if (req.userType === 'admin') {
+      await Admin.findByIdAndUpdate(req.user._id, { lastActivity: new Date() });
+    } else if (req.userType === 'client') {
+      await Client.findByIdAndUpdate(req.user._id, { lastActivity: new Date() });
+    }
+    
+    res.json({ 
+      message: 'Session is alive',
+      user: req.user,
+      userType: req.userType,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Keep alive error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

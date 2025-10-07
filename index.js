@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const whatsappService = require('./services/whatsappService');
 require('dotenv').config();
 
 const app = express();
@@ -13,13 +14,16 @@ app.use(cors({
   origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cache-Control', 'Accept']
 }));
 
-// Rate limiting
+// Rate limiting - More lenient for development
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 1000, // limit each IP to 1000 requests per hour
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 app.use(limiter);
 
@@ -27,14 +31,23 @@ app.use(limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Static files for uploads
-app.use('/uploads', express.static('uploads'));
+// Static files for uploads with CORS headers
+app.use('/uploads', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.header('Pragma', 'no-cache');
+  res.header('Expires', '0');
+  next();
+}, express.static('uploads'));
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/crew', require('./routes/crew'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/client', require('./routes/client'));
+app.use('/api/notifications', require('./routes/notifications'));
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -60,8 +73,17 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/captain-c
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(() => {
+.then(async () => {
   console.log('Connected to MongoDB');
+  
+  // Initialize WhatsApp service
+  try {
+    await whatsappService.initialize();
+    console.log('WhatsApp service initialization started');
+  } catch (error) {
+    console.error('WhatsApp service initialization failed:', error);
+    console.log('Server will continue without WhatsApp service');
+  }
 })
 .catch((error) => {
   console.error('MongoDB connection error:', error);

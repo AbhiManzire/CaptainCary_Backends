@@ -98,3 +98,6 @@ Thumbs.db
 # Logs
 logs
 *.log
+
+# Uploads folder (contains user uploaded files)
+uploads/
