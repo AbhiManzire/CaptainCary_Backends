@@ -160,7 +160,11 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  limits: { 
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fieldSize: 10 * 1024 * 1024, // 10MB limit for field values
+    files: 8 // Maximum 8 files (cv, passport, cdc, stcw, coc, seamanBook, visa, photo)
+  },
   fileFilter: (req, file, cb) => {
     const allowedTypes = /pdf|jpeg|jpg|png/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
@@ -317,31 +321,31 @@ router.post('/register', upload.fields([
     await crew.save();
     console.log('Crew saved successfully with ID:', crew._id);
 
-    // Create auto-reminders for admin
-    try {
-      console.log('Creating auto reminders...');
-      await createAutoRemindersForNewCrew(crew);
-      console.log('Auto reminders created successfully');
-    } catch (reminderError) {
-      console.error('Auto reminder creation failed:', reminderError);
-      // Don't fail the registration if reminders fail
-    }
-
-    // Send notifications
-    try {
-      console.log('Sending notifications...');
-      await sendNewCrewNotification(crew);
-      console.log('Admin notification sent');
-      await sendCrewRegistrationConfirmation(crew);
-      console.log('Crew confirmation sent');
-    } catch (notificationError) {
-      console.error('Notification error:', notificationError);
-      // Don't fail the registration if notifications fail
-    }
-
+    // Send immediate response to prevent timeout
     res.status(201).json({
       message: 'Crew registration successful',
       crewId: crew._id
+    });
+
+    // Handle notifications and reminders asynchronously (non-blocking)
+    setImmediate(async () => {
+      try {
+        console.log('Creating auto reminders...');
+        await createAutoRemindersForNewCrew(crew);
+        console.log('Auto reminders created successfully');
+      } catch (reminderError) {
+        console.error('Auto reminder creation failed:', reminderError);
+      }
+
+      try {
+        console.log('Sending notifications...');
+        await sendNewCrewNotification(crew);
+        console.log('Admin notification sent');
+        await sendCrewRegistrationConfirmation(crew);
+        console.log('Crew confirmation sent');
+      } catch (notificationError) {
+        console.error('Notification error:', notificationError);
+      }
     });
   } catch (error) {
     console.error('Crew registration error:', error);
