@@ -140,10 +140,17 @@ ${crew.additionalNotes ? `{\\b Additional Information:}\\par ${crew.additionalNo
 
 const router = express.Router();
 
+// Ensure uploads directory exists
+const fs = require('fs');
+const uploadsDir = 'uploads';
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -226,22 +233,30 @@ router.post('/register', upload.fields([
     } = req.body;
 
     // Check if crew already exists
+    console.log('Checking for existing crew with email:', email);
     const existingCrew = await Crew.findOne({ email });
     if (existingCrew) {
+      console.log('Crew already exists with this email');
       return res.status(400).json({ message: 'Crew member already registered with this email' });
     }
+    console.log('No existing crew found, proceeding with registration');
 
     // Process uploaded files
     const documents = {};
     if (req.files) {
       console.log('Processing files:', Object.keys(req.files));
       Object.keys(req.files).forEach(fieldName => {
-        const file = req.files[fieldName][0];
-        console.log(`File ${fieldName}:`, file.originalname);
-        documents[fieldName] = {
-          name: file.originalname,
-          url: `/uploads/${file.filename}`
-        };
+        if (req.files[fieldName] && req.files[fieldName].length > 0) {
+          const file = req.files[fieldName][0];
+          console.log(`File ${fieldName}:`, file.originalname, 'Size:', file.size, 'Type:', file.mimetype);
+          documents[fieldName] = {
+            name: file.originalname,
+            url: `/uploads/${file.filename}`,
+            uploadedAt: new Date()
+          };
+        } else {
+          console.log(`No file found for field: ${fieldName}`);
+        }
       });
     } else {
       console.log('No files received');
@@ -271,6 +286,18 @@ router.post('/register', upload.fields([
       });
     }
 
+    console.log('Creating new crew record with data:', {
+      fullName,
+      email,
+      phone,
+      rank,
+      nationality,
+      currentLocation,
+      dateOfBirth: new Date(dateOfBirth),
+      availabilityDate: new Date(availabilityDate),
+      documents: Object.keys(documents)
+    });
+
     const crew = new Crew({
       fullName,
       email,
@@ -286,11 +313,15 @@ router.post('/register', upload.fields([
       documents
     });
 
+    console.log('Saving crew to database...');
     await crew.save();
+    console.log('Crew saved successfully with ID:', crew._id);
 
     // Create auto-reminders for admin
     try {
+      console.log('Creating auto reminders...');
       await createAutoRemindersForNewCrew(crew);
+      console.log('Auto reminders created successfully');
     } catch (reminderError) {
       console.error('Auto reminder creation failed:', reminderError);
       // Don't fail the registration if reminders fail
@@ -298,8 +329,11 @@ router.post('/register', upload.fields([
 
     // Send notifications
     try {
+      console.log('Sending notifications...');
       await sendNewCrewNotification(crew);
+      console.log('Admin notification sent');
       await sendCrewRegistrationConfirmation(crew);
+      console.log('Crew confirmation sent');
     } catch (notificationError) {
       console.error('Notification error:', notificationError);
       // Don't fail the registration if notifications fail
@@ -314,8 +348,17 @@ router.post('/register', upload.fields([
     console.error('Error details:', {
       message: error.message,
       stack: error.stack,
-      name: error.name
+      name: error.name,
+      code: error.code
     });
+    
+    // Log additional context for debugging
+    console.error('Request context:', {
+      body: req.body,
+      files: req.files ? Object.keys(req.files) : 'No files',
+      contentType: req.headers['content-type']
+    });
+    
     res.status(500).json({ 
       message: 'Server error',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
