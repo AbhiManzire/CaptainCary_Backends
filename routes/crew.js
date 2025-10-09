@@ -167,6 +167,14 @@ const upload = multer({
   }
 });
 
+// Debug route to test crew functionality
+router.get('/test', (req, res) => {
+  res.json({ 
+    message: 'Crew route is working',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Crew registration (public endpoint)
 router.post('/register', upload.fields([
   { name: 'cv', maxCount: 1 },
