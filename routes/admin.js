@@ -307,47 +307,6 @@ router.get('/clients/:id', async (req, res) => {
   }
 });
 
-// Assign crew to client shortlist
-router.post('/crew/:crewId/assign-client', [
-  body('clientId').notEmpty().trim()
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { crewId } = req.params;
-    const { clientId } = req.body;
-
-    const crew = await Crew.findById(crewId);
-    if (!crew) {
-      return res.status(404).json({ message: 'Crew not found' });
-    }
-
-    const client = await Client.findById(clientId);
-    if (!client) {
-      return res.status(404).json({ message: 'Client not found' });
-    }
-
-    // Check if crew is already assigned to this client
-    if (crew.clientShortlists.includes(clientId)) {
-      return res.status(400).json({ message: 'Crew already assigned to this client' });
-    }
-
-    // Add client to crew's shortlist
-    crew.clientShortlists.push(clientId);
-    await crew.save();
-
-    res.json({
-      message: 'Crew assigned to client shortlist successfully',
-      crew: crew
-    });
-  } catch (error) {
-    console.error('Assign crew to client error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
 
 // Remove crew from client shortlist
 router.delete('/crew/:crewId/remove-client/:clientId', async (req, res) => {

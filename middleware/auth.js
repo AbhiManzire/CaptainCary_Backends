@@ -37,13 +37,10 @@ const auth = async (req, res, next) => {
   } catch (error) {
     console.error('Auth middleware error:', error.message);
     
-    // Skip JWT expiration errors - allow request to proceed
+    // Handle JWT expiration errors properly
     if (error.name === 'TokenExpiredError') {
-      console.log('JWT expired, but allowing request to proceed');
-      // Set default user or skip authentication
-      req.user = null;
-      req.userType = null;
-      return next();
+      console.log('JWT expired');
+      return res.status(401).json({ message: 'Token has expired' });
     } else if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({ message: 'Invalid token' });
     } else {

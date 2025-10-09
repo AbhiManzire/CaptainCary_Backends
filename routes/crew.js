@@ -5,8 +5,51 @@ const { body, validationResult } = require('express-validator');
 const Crew = require('../models/Crew');
 const { auth, adminAuth } = require('../middleware/auth');
 const { sendNewCrewNotification, sendCrewRegistrationConfirmation } = require('../services/notificationService');
+const Reminder = require('../models/Reminder');
 const { processDocumentWithWatermark } = require('../services/watermarkService');
 const cvTemplateService = require('../services/cvTemplateService');
+
+// Function to create auto-reminders for new crew
+const createAutoRemindersForNewCrew = async (crew) => {
+  try {
+    console.log('Creating auto reminders for crew:', crew._id);
+    
+    // Create initial review reminder (due in 2 days)
+    const reviewDate = new Date();
+    reviewDate.setDate(reviewDate.getDate() + 2);
+    
+    const reviewReminder = new Reminder({
+      title: 'New Crew Review Required',
+      description: `Review new crew submission: ${crew.fullName} (${crew.rank})`,
+      dueDate: reviewDate,
+      priority: 'high',
+      crewId: crew._id,
+      status: 'pending',
+      createdBy: null // System-generated reminder
+    });
+
+    // Create document verification reminder (due in 5 days)
+    const docVerificationDate = new Date();
+    docVerificationDate.setDate(docVerificationDate.getDate() + 5);
+    
+    const docReminder = new Reminder({
+      title: 'Document Verification Required',
+      description: `Verify documents for: ${crew.fullName}`,
+      dueDate: docVerificationDate,
+      priority: 'medium',
+      crewId: crew._id,
+      status: 'pending',
+      createdBy: null // System-generated reminder
+    });
+
+    await Promise.all([reviewReminder.save(), docReminder.save()]);
+    console.log('Auto reminders created successfully for crew:', crew._id);
+    return { success: true };
+  } catch (error) {
+    console.error('Error creating auto reminders:', error);
+    throw error;
+  }
+};
 
 // Function to generate Word document content with CFM branding (legacy function)
 const generateWordDocumentLegacy = (crew, options = {}) => {
@@ -236,6 +279,14 @@ router.post('/register', upload.fields([
     });
 
     await crew.save();
+
+    // Create auto-reminders for admin
+    try {
+      await createAutoRemindersForNewCrew(crew);
+    } catch (reminderError) {
+      console.error('Auto reminder creation failed:', reminderError);
+      // Don't fail the registration if reminders fail
+    }
 
     // Send notifications
     try {

@@ -58,7 +58,8 @@ router.get('/crew', async (req, res) => {
 
     const query = { 
       status: 'approved',
-      approvedForClients: true 
+      approvedForClients: true,
+      clientShortlists: req.user._id
     };
     
     if (search) {
@@ -114,6 +115,12 @@ router.get('/crew/:id', async (req, res) => {
     if (!crew || crew.status !== 'approved' || !crew.approvedForClients) {
       console.log(`[DEBUG] Crew not available - Status: ${crew?.status}, Approved: ${crew?.approvedForClients}`);
       return res.status(404).json({ message: 'Crew not found or not available' });
+    }
+
+    // Check if crew is assigned to this client
+    if (!crew.clientShortlists.includes(req.user._id)) {
+      console.log(`[DEBUG] Crew not assigned to client - Client ID: ${req.user._id}`);
+      return res.status(403).json({ message: 'This crew member is not assigned to your company' });
     }
     
     // Keep CV for client view but mark as restricted
@@ -420,8 +427,13 @@ router.post('/requests', [
     const { crewId, requestType, message, urgency = 'normal' } = req.body;
     
     const crew = await Crew.findById(crewId);
-    if (!crew || crew.status !== 'approved') {
-      return res.status(404).json({ message: 'Crew not found or not approved' });
+    if (!crew || crew.status !== 'approved' || !crew.approvedForClients) {
+      return res.status(404).json({ message: 'Crew not found or not available for clients' });
+    }
+
+    // Check if crew is assigned to this client
+    if (!crew.clientShortlists.includes(req.user._id)) {
+      return res.status(403).json({ message: 'This crew member is not assigned to your company' });
     }
 
     const request = new ClientRequest({

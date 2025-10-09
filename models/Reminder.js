@@ -36,7 +36,7 @@ const reminderSchema = new mongoose.Schema({
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Admin',
-    required: true
+    required: false // Allow null for system-generated reminders
   },
   assignedTo: {
     type: mongoose.Schema.Types.ObjectId,
