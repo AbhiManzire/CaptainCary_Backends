@@ -49,9 +49,13 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/client', require('./routes/client'));
 app.use('/api/notifications', require('./routes/notifications'));
 
-// Health check
+// Health check endpoint to prevent sleep
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
 });
 
 // Error handling middleware
