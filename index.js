@@ -64,6 +64,14 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Debug route to test crew registration
+app.get('/api/crew/test', (req, res) => {
+  res.json({ 
+    message: 'Crew route is working',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
